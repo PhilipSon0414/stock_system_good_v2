@@ -18,14 +18,23 @@ cd "$DIR"
     exit 0
   fi
 
-  echo "── 1/3 수급 갱신"
+  echo "── 1/4 수급 갱신"
   python3 -W ignore fetch_flows.py update
 
-  echo "── 2/3 예측 리포트 (가격 갱신 + 패널 + 스코어링 + v1 검증)"
+  echo "── 2/4 예측 리포트 (가격 갱신 + 패널 + 스코어링 + v1 검증)"
   python3 -W ignore predict_today.py
 
-  echo "── 3/3 성과 추적"
+  echo "── 3/4 성과 추적"
   python3 -W ignore track_performance.py
+
+  echo "── 4/4 GitHub 동기화"
+  git add -A
+  if ! git diff --cached --quiet; then
+    git commit -m "일일 자동 갱신: $(date '+%Y-%m-%d') 리포트·성과·모델"
+    git push origin main || echo "⚠ push 실패 (다음 실행 때 재시도)"
+  else
+    echo "변경 없음 — 커밋 생략"
+  fi
 
   echo "════ 완료 $(date '+%H:%M:%S') ════"
 } >> "$LOG" 2>&1

@@ -112,11 +112,15 @@ track_performance가 실현 수익·적중률을 매일 사후 검증한다.
 재검증(v1_bridge.py, 별도 프로세스) — 세력 점수·ML 티어·진입 타이밍이
 리포트에 병기된다. v2 = 후보 생성기(전 종목 랭킹), v1 = 정밀 검증기.
 
-**KRX 로그인**: `krx_config.json`(권한 600)에 자격증명 보관,
-`config_v2.py`가 KRX_ID/KRX_PW 환경변수로 주입. 단 2026-07-07 현재
-KRX 서버가 해당 자격증명을 거부("자격 증명을 확인하세요") —
-data.krx.co.kr에서 계정 상태 확인 필요. 수집은 네이버 소스로 정상 동작
-중이라 기능 영향 없음.
+**KRX 로그인**: `krx_config.json`(권한 600, **git 미추적**)에 자격증명 보관,
+`config_v2.py`가 KRX_ID/KRX_PW 환경변수로 주입. 2026-07-07 현재 상태:
+**CD007 계정 잠금(패스워드 오류 횟수 초과)** — data.krx.co.kr에서
+잠금 해제/비밀번호 재설정 필요. 해제되면 자동 적용. 수집은 네이버 소스로
+정상 동작 중이라 기능 영향 없음.
+
+**GitHub 동기화**: [PhilipSon0414/stock_system_good_v2](https://github.com/PhilipSon0414/stock_system_good_v2).
+run_nightly.sh 마지막 단계가 매일 리포트·성과·모델 변경분을 자동
+커밋·푸시한다. 데이터 캐시(`cache/`, `panel.pkl`)와 자격증명은 .gitignore.
 
 ## 알려진 한계 (다음 단계)
 
