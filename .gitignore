@@ -1,0 +1,12 @@
+# 자격증명 — 절대 커밋 금지
+krx_config.json
+
+# 대용량 데이터 캐시 (재생성 가능: build_panel.py all / fetch_flows.py)
+cache/
+panel.pkl
+
+# 로그/임시
+logs/
+__pycache__/
+*.pyc
+.DS_Store
