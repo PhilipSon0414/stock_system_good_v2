@@ -114,9 +114,7 @@ track_performance가 실현 수익·적중률을 매일 사후 검증한다.
 
 **KRX 로그인**: `krx_config.json`(권한 600, **git 미추적**)에 자격증명 보관,
 `config_v2.py`가 KRX_ID/KRX_PW 환경변수로 주입. 2026-07-07 현재 상태:
-**CD007 계정 잠금(패스워드 오류 횟수 초과)** — data.krx.co.kr에서
-잠금 해제/비밀번호 재설정 필요. 해제되면 자동 적용. 수집은 네이버 소스로
-정상 동작 중이라 기능 영향 없음.
+계정 자격증명(ID `czar101`) 적용 완료. 수집은 네이버 소스로 정상 동작 중.
 
 **GitHub 동기화**: [PhilipSon0414/stock_system_good_v2](https://github.com/PhilipSon0414/stock_system_good_v2).
 run_nightly.sh 마지막 단계가 매일 리포트·성과·모델 변경분을 자동
