@@ -18,6 +18,14 @@ cd "$DIR"
     exit 0
   fi
 
+  # 중복 실행 가드: 오늘 이미 완료했으면 스킵
+  # (launchd 트리거가 18:00/20:30/22:30 3회라 — Mac이 잠들어 있어도
+  #  깨어있는 첫 시점에 한 번만 실행되게 하는 캐치업 구조)
+  if grep -q "════ 완료" "$LOG" 2>/dev/null; then
+    echo "오늘 이미 완료 — 스킵 ($(date '+%H:%M'))"
+    exit 0
+  fi
+
   echo "── 1/4 수급 갱신"
   python3 -W ignore fetch_flows.py update
 

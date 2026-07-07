@@ -35,6 +35,8 @@ cat > "$PLIST" << EOF
         <string>${SCRIPT_DIR}/run_nightly.sh</string>
     </array>
 
+    <!-- 18:00 본실행 + 20:30/22:30 캐치업 (run_nightly.sh가 중복 실행 스킵)
+         Mac이 잠들어 트리거를 놓쳐도 깨어있는 첫 시점에 실행됨 -->
     <key>StartCalendarInterval</key>
     <array>
         <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>1</integer></dict>
@@ -42,6 +44,16 @@ cat > "$PLIST" << EOF
         <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>3</integer></dict>
         <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>4</integer></dict>
         <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer><key>Weekday</key><integer>5</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>1</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>2</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>3</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>4</integer></dict>
+        <dict><key>Hour</key><integer>20</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>5</integer></dict>
+        <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>1</integer></dict>
+        <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>2</integer></dict>
+        <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>3</integer></dict>
+        <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>4</integer></dict>
+        <dict><key>Hour</key><integer>22</integer><key>Minute</key><integer>30</integer><key>Weekday</key><integer>5</integer></dict>
     </array>
 
     <key>StandardOutPath</key>
