@@ -26,16 +26,19 @@ cd "$DIR"
     exit 0
   fi
 
-  echo "── 1/4 수급 갱신"
+  echo "── 1/5 수급 갱신"
   python3 -W ignore fetch_flows.py update
 
-  echo "── 2/4 예측 리포트 (가격 갱신 + 패널 + 스코어링 + v1 검증)"
+  echo "── 2/5 예측 리포트 (가격 갱신 + 패널 + 스코어링 + v1 검증)"
   python3 -W ignore predict_today.py
 
-  echo "── 3/4 성과 추적"
+  echo "── 3/5 성과 추적"
   python3 -W ignore track_performance.py
 
-  echo "── 4/4 GitHub 동기화"
+  echo "── 4/5 이메일 발송"
+  python3 -W ignore send_report.py || echo "⚠ 이메일 실패 (파이프라인 계속)"
+
+  echo "── 5/5 GitHub 동기화"
   git add -A
   if ! git diff --cached --quiet; then
     git commit -m "일일 자동 갱신: $(date '+%Y-%m-%d') 리포트·성과·모델"
