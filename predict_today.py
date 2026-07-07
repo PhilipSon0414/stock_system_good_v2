@@ -38,9 +38,17 @@ MODELS = {'j1': 'panel_model_label_jump_1d.pkl',
           'o5': 'panel_model_label_o5.pkl'}   # D+1 시가 매수 기준 (실매매용)
 
 # 시뮬레이션 검증(12개월)으로 확정한 매매 규칙:
-#   전체 top5 랭킹 중 '픽 당일 +15% 미만'(비상한가)만 D+1 시가 매수, 5일 보유.
-#   o5 랭킹: +1.04%/건·승률45%·2건/일 (안정) / j1 랭킹: +2.17%/건·승률39% (고분산)
+#   전체 top5 랭킹 중 '픽 당일 +15% 미만'(비상한가 제외) 그리고
+#   '5일 수익률 > -30%'(falling knife 제외)만 D+1 시가 매수, 5일 보유.
+#   칼날 제외 후 o5: +1.27%/건·승률45% / 완만한 눌림(-30~-10%)이 +2.78% 최적.
+#   폭락주(-30%↓) 반등 베팅은 백테스트 -4.21%/건 — v1도 같은 결함을 겪고 수정
+#   (2026-06 '폭락주 외삽 결함'). 생존편향(상폐주 부재)까지 감안하면 더 나쁨.
 TRADABLE_RET1 = 0.15
+KNIFE_RET5    = -0.30
+
+
+def _is_tradable(r) -> bool:
+    return (r['ret1'] <= TRADABLE_RET1) and (r['ret5'] > KNIFE_RET5)
 
 
 def _load_models():
@@ -105,17 +113,16 @@ def run(refresh: bool = True, top_n: int = 20):
         '',
         f'유니버스 {len(day):,}종목 | 정렬: D+1 시가 매수 후 5일 내 +10% 확률(o5) 순',
         '',
-        '**매매 규칙 (12개월 시뮬레이션 검증)**: 아래 top5 중 `매매` 표시',
-        '(당일 +15% 미만)만 다음날 **시가 매수 → 5거래일 보유**.',
-        'o5 기준 +1.0%/건·승률 45%·~2건/일. 표시 없는 상위 픽(이미 급등)은',
-        '시가 갭이 수익을 잠식해 매수 금지 — 관찰만.',
+        '**매매 규칙 (12개월 시뮬레이션 검증)**: 아래 top5 중 `매매` 표시만',
+        '다음날 **시가 매수 → 5거래일 보유**. 표시 조건: 당일 +15% 미만(상한가류',
+        '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건).',
+        '칼날 제외 후 o5 +1.27%/건·승률 45%. 완만한 눌림(-30%~-10%)이 +2.78% 최적.',
         '',
         '| # | 매매 | 종목 | 코드 | 종가 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | v1 세력/티어 |',
         '|---|---|---|---|---|---|---|---|---|---|---|---|',
     ]
     for rank, (idx, r) in enumerate(picks.iterrows(), 1):
-        tradable = '✅' if (idx in top5_idx
-                           and r['ret1'] <= TRADABLE_RET1) else ''
+        tradable = '✅' if (idx in top5_idx and _is_tradable(r)) else ''
         v = v1.get(r['code'])
         v1_txt = (f"세력{v['seoryeok']}/T-{v['tier']}" if v
                   else ('게이트미달' if r['code'] in v1 else '—'))
@@ -129,7 +136,7 @@ def run(refresh: bool = True, top_n: int = 20):
     # v1 진입 타이밍 코멘트 (매매픽만)
     timing = [(r['name'], v1.get(r['code']))
               for idx, r in picks.head(5).iterrows()
-              if idx in top5_idx and r['ret1'] <= TRADABLE_RET1]
+              if idx in top5_idx and _is_tradable(r)]
     timing = [(n, v) for n, v in timing if v and v.get('entry_timing')]
     if timing:
         lines += ['', '**v1 진입 타이밍 (매매픽)**:']
@@ -157,7 +164,7 @@ def run(refresh: bool = True, top_n: int = 20):
             'prob_5d': round(float(r.get('prob_5d', np.nan)), 4),
             'ret1': round(float(r['ret1']), 4),
             'vol_ratio': round(float(r['vol_ratio']), 2),
-            'tradable': bool(idx in top5_idx and r['ret1'] <= TRADABLE_RET1),
+            'tradable': bool(idx in top5_idx and _is_tradable(r)),
             'v1': v1.get(r['code']),
         } for i, (idx, r) in enumerate(picks.iterrows())],
     })
