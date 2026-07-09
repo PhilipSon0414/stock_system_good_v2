@@ -98,8 +98,9 @@ python3 train_panel.py train 5    # 최종 모델 저장 → panel_model_5d.pkl
 ## 운용 (자동화 완료)
 
 **LaunchAgent `com.stocksystem.v2_predict`가 평일 18:00 자동 실행**
-(`run_nightly.sh`): 수급 갱신 → 가격 갱신·패널·스코어링·v1 정밀검증 →
-리포트(`reports/picks_YYYY-MM-DD.md`) → 성과 추적(`reports/performance.md`).
+(`run_nightly.sh`): 수급 갱신 → 가격 갱신·패널 재생성 → 모델 학습(j1·5d·o5)
+→ 스캔·v1 정밀검증 → 리포트(`reports/picks_YYYY-MM-DD.md`) →
+성과 추적(`reports/performance.md`) → 이메일 발송 → GitHub 동기화.
 기존 v1 작업들(19:00 재학습, 20:00 학습, 20:10 스캔)과 시간 분리.
 
 ```bash

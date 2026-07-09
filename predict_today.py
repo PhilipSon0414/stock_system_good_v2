@@ -10,7 +10,7 @@
 
 사용법:
     python3 predict_today.py                # 갱신 + 리포트
-    python3 predict_today.py --no-refresh   # 캐시 갱신 생략 (테스트)
+    python3 predict_today.py --no-refresh   # 캐시·패널 갱신 생략, panel.pkl 재사용
     python3 predict_today.py --top 30       # 후보 수 조정
 
 v1(stock_system)과의 결합: 이 리포트가 '후보 생성기' 역할.
@@ -83,8 +83,13 @@ def run(refresh: bool = True, top_n: int = 20):
         uni = bp.fetch_listing()
         bp.fetch_prices(uni, refresh=True)
 
-    print('■ 2/3 패널 재생성')
-    panel = bp.build_panel()
+    if not refresh and PANEL_FILE.exists():
+        # run_nightly.sh가 학습 직전에 패널을 이미 재생성 — 그대로 재사용
+        print('■ 2/3 패널 로드 (기존 panel.pkl)')
+        panel = pd.read_pickle(PANEL_FILE)
+    else:
+        print('■ 2/3 패널 재생성')
+        panel = bp.build_panel()
 
     print('■ 3/3 스코어링')
     latest = panel['date'].max()
