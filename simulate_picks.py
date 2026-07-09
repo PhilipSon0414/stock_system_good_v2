@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 from config_v2 import (BASE_DIR, PX_DIR, EMBARGO_CAL_DAYS,
-                       N_TEST_MONTHS)
+                       N_TEST_MONTHS, TRADABLE_RET1, OVERHEAT_R5)
 from train_panel import load_panel, _mk_model
 
 COST      = 0.0025      # 왕복 거래비용 근사
@@ -127,7 +127,8 @@ def simulate(spec='j1', k=5, max_ret1=None):
                 o.update({'month': str(m), 'date': str(r['date'].date()),
                           'code': r['code'], 'name': r['name'],
                           'prob': float(r['prob']),
-                          'ret1': float(r['ret1'])})   # 픽 당일 등락률 (필터 분석용)
+                          'ret1': float(r['ret1']),    # 픽 당일 등락률 (필터 분석용)
+                          'kospi_ret5': float(r.get('kospi_ret5', np.nan))})
                 m_tr.append(o)
         all_trades += m_tr
 
@@ -162,6 +163,18 @@ def simulate(spec='j1', k=5, max_ret1=None):
               f"  승률 {win*100:.0f}%  (랜덤픽 {rr.mean()*100:+.2f}%)")
     print(f"  평균 갭(시가 프리미엄): {df['gap'].mean()*100:+.2f}%"
           f"  (중앙값 {df['gap'].median()*100:+.2f}%)")
+
+    # 매매 규칙 + 시장 과열 게이트 효과 (B 5일보유 기준, validate_market_gate.py 참고)
+    if df['kospi_ret5'].notna().any():
+        rule  = df[df['ret1'] <= TRADABLE_RET1]
+        gated = rule[rule['kospi_ret5'] <= OVERHEAT_R5]
+        print(f"\n  ── 매매 규칙(픽 당일 ≤{TRADABLE_RET1*100:.0f}%) + "
+              f"과열 게이트(KOSPI 5일 ≤{OVERHEAT_R5*100:+.0f}%) ──")
+        for nm, d_ in [('규칙만', rule), ('규칙+게이트', gated)]:
+            r = d_['ret_5d'] - COST
+            print(f"  {nm}: 평균 {r.mean()*100:+.2f}%/건  중앙값 "
+                  f"{r.median()*100:+.2f}%  승률 {(r > 0).mean()*100:.0f}%"
+                  f"  n={len(d_)}")
 
     suffix = f'_cool{int(max_ret1*100)}' if max_ret1 is not None else ''
     df.to_json(BASE_DIR / f'sim_trades_{label}_k{k}{suffix}.json',

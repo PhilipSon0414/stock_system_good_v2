@@ -26,7 +26,8 @@ import numpy as np
 import pandas as pd
 import joblib
 
-from config_v2 import BASE_DIR, PANEL_FILE, MIN_PRICE, MIN_MCAP
+from config_v2 import (BASE_DIR, PANEL_FILE, MIN_PRICE, MIN_MCAP,
+                       TRADABLE_RET1, KNIFE_RET5, OVERHEAT_R5)
 import build_panel as bp
 
 REPORT_DIR   = BASE_DIR / 'reports'
@@ -37,17 +38,25 @@ MODELS = {'j1': 'panel_model_label_jump_1d.pkl',
           '5d': 'panel_model_label_5d.pkl',
           'o5': 'panel_model_label_o5.pkl'}   # D+1 시가 매수 기준 (실매매용)
 
-# 시뮬레이션 검증(12개월)으로 확정한 매매 규칙:
+# 시뮬레이션 검증(12개월)으로 확정한 매매 규칙 (상수는 config_v2):
 #   전체 top5 랭킹 중 '픽 당일 +15% 미만'(비상한가 제외) 그리고
 #   '5일 수익률 > -30%'(falling knife 제외)만 D+1 시가 매수, 5일 보유.
 #   칼날 제외 후 o5: +1.27%/건·승률45% / 완만한 눌림(-30~-10%)이 +2.78% 최적.
 #   폭락주(-30%↓) 반등 베팅은 백테스트 -4.21%/건 — v1도 같은 결함을 겪고 수정
 #   (2026-06 '폭락주 외삽 결함'). 생존편향(상폐주 부재)까지 감안하면 더 나쁨.
-TRADABLE_RET1 = 0.15
-KNIFE_RET5    = -0.30
+# 2026-07-09 추가 — 시장 과열 게이트: KOSPI 5일 > +2%면 신규 매매 중단
+#   (과열 구간 매매 175건 평균 -2.06%, 제외 시 +1.04→+2.77%/건. 검증 근거와
+#   한계는 validate_market_gate.py / reports/market_gate_validation.md).
+
+
+def _market_overheated(k5) -> bool:
+    # 지수 데이터 결손(NaN)이면 게이트를 열어둔다 — 결손 ≠ 과열
+    return pd.notna(k5) and k5 > OVERHEAT_R5
 
 
 def _is_tradable(r) -> bool:
+    if _market_overheated(r.get('kospi_ret5')):
+        return False
     return (r['ret1'] <= TRADABLE_RET1) and (r['ret5'] > KNIFE_RET5)
 
 
@@ -108,14 +117,24 @@ def run(refresh: bool = True, top_n: int = 20):
 
     # ── 리포트 ──
     date_str = str(latest.date())
+    kospi_r5 = day['kospi_ret5'].iloc[0] if 'kospi_ret5' in day.columns \
+        else np.nan
+    overheated = _market_overheated(kospi_r5)
+    gate_txt = (f'KOSPI 5일 {kospi_r5*100:+.1f}%' if pd.notna(kospi_r5)
+                else 'KOSPI 지수 데이터 없음')
+    gate_txt += (' → **과열 — 신규 매매 중단** (백테스트: 과열 구간 -2.06%/건)'
+                 if overheated else ' → 정상 (매매 허용)')
     lines = [
         f'# 급등 후보 리포트 — 기준일 {date_str} (다음 거래일 예측)',
         '',
         f'유니버스 {len(day):,}종목 | 정렬: D+1 시가 매수 후 5일 내 +10% 확률(o5) 순',
         '',
+        f'**시장 게이트**: {gate_txt}',
+        '',
         '**매매 규칙 (12개월 시뮬레이션 검증)**: 아래 top5 중 `매매` 표시만',
         '다음날 **시가 매수 → 5거래일 보유**. 표시 조건: 당일 +15% 미만(상한가류',
-        '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건).',
+        '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건)',
+        '& 시장 비과열(KOSPI 5일 ≤ +2% — 과열 구간 매매는 백테스트 -2.1%/건).',
         '칼날 제외 후 o5 +1.27%/건·승률 45%. 완만한 눌림(-30%~-10%)이 +2.78% 최적.',
         '',
         '| # | 매매 | 종목 | 코드 | 종가 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | v1 세력/티어 |',
@@ -156,6 +175,7 @@ def run(refresh: bool = True, top_n: int = 20):
     hist.append({
         'date': date_str,
         'generated_at': datetime.now().isoformat(timespec='seconds'),
+        'kospi_ret5': round(float(kospi_r5), 4) if pd.notna(kospi_r5) else None,
         'picks': [{
             'rank': i + 1, 'code': r['code'], 'name': r['name'],
             'close': float(r['close']),
