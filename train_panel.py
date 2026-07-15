@@ -55,6 +55,13 @@ def load_panel(spec):
                   panel[label].notna()].copy()
     feats = [c for c in panel.columns
              if c not in ID_COLS and not c.startswith(LABEL_PRE)]
+    # 전체 NaN 피처 제외 — 수급 캐시가 없는 환경에서 flow 피처가 100% NaN이
+    # 되는데, sklearn(1.9+) HistGBM 비닝이 전-NaN 컬럼에서 크래시한다.
+    # 데이터가 있으면 그대로 유지되므로 평소엔 no-op.
+    all_nan = [c for c in feats if panel[c].isna().all()]
+    if all_nan:
+        print(f'  ⚠ 전체 NaN 피처 {len(all_nan)}개 제외: {all_nan}')
+        feats = [c for c in feats if c not in all_nan]
     panel = panel.sort_values('date').reset_index(drop=True)
     return panel, feats, label
 
