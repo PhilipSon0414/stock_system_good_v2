@@ -55,6 +55,12 @@ def load_panel(spec):
                   panel[label].notna()].copy()
     feats = [c for c in panel.columns
              if c not in ID_COLS and not c.startswith(LABEL_PRE)]
+    # 수급 캐시가 없는 환경에서는 flow 피처가 전부 NaN → HistGBM 비닝이
+    # 고유값 2개 미만 컬럼에서 실패한다. 정보 없는 컬럼은 학습에서 제외.
+    dead = [c for c in feats if panel[c].dropna().nunique() < 2]
+    if dead:
+        print(f'  정보 없는 피처 제외: {dead}')
+        feats = [c for c in feats if c not in dead]
     panel = panel.sort_values('date').reset_index(drop=True)
     return panel, feats, label
 

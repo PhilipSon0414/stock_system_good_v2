@@ -220,10 +220,11 @@ def ticker_features(df: pd.DataFrame, code: str, shares: float,
                                         .cumsum().astype(float))
         out['frgn_ratio_chg5'] = fl['ForeignRatio'].diff(5)
     else:
-        for c in ('frgn_net5', 'frgn_net20', 'frgn_consec_buy',
-                  'inst_net5', 'inst_net20', 'inst_consec_buy',
-                  'frgn_ratio_chg5'):
-            out[c] = np.nan
+        # 주의: 루프 변수가 종가 시리즈 c를 가리면 아래 라벨(B) 계산이 깨진다
+        for col in ('frgn_net5', 'frgn_net20', 'frgn_consec_buy',
+                    'inst_net5', 'inst_net20', 'inst_consec_buy',
+                    'frgn_ratio_chg5'):
+            out[col] = np.nan
 
     # ── 라벨(B): v1 forward_tracker 호환 — k일 내 '단일일 종가 +10%' 발생 ──
     # (전일종가 대비 하루 등락률 기준. |±30%| 초과는 분할/권리락 아티팩트 제외)
