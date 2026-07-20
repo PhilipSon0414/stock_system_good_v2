@@ -1,5 +1,9 @@
 # 자격증명 — 절대 커밋 금지
 krx_config.json
+email_config.json
+
+# 이메일 HTML 본문 (picks_*.md와 중복 — send_report.py가 매일 생성)
+reports/email_*.html
 
 # 대용량 데이터 캐시 (재생성 가능: build_panel.py all / fetch_flows.py)
 cache/

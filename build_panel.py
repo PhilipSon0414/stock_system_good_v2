@@ -69,10 +69,17 @@ def fetch_listing() -> pd.DataFrame:
     return uni
 
 
-def fetch_prices(uni: pd.DataFrame, refresh: bool = False):
+def fetch_prices(uni: pd.DataFrame, refresh: bool = False,
+                 workers: int | None = None):
     """종목별 일봉 캐시. 이미 받은 종목은 스킵 → 중단 후 재개 가능.
-    refresh=True면 캐시 최종일이 오늘(리스팅 기준일)보다 뒤처진 종목만 재수집."""
+    refresh=True면 캐시 최종일이 오늘(리스팅 기준일)보다 뒤처진 종목만 재수집.
+    workers: 동시 수집 스레드 수 (기본 1 = 기존 순차 동작).
+             원격 환경은 요청당 왕복이 ~2s라 순차로는 90분+ →
+             FETCH_WORKERS=12 환경변수로 병렬화 (fetch_flows와 같은 패턴)."""
+    import os
     import FinanceDataReader as fdr
+    if workers is None:
+        workers = int(os.environ.get('FETCH_WORKERS', '1'))
     codes = list(uni['Code'])
     done = fail = 0
     t0 = time.time()
@@ -84,32 +91,55 @@ def fetch_prices(uni: pd.DataFrame, refresh: bool = False):
             print(f'  최신 거래일: {latest_td.date()}')
         except Exception:
             pass
-    for i, code in enumerate(codes):
+
+    def _need(code) -> bool:
         out = PX_DIR / f'{code}.pkl'
-        if out.exists():
-            if not refresh or latest_td is None:
-                done += 1
-                continue
-            try:   # 최신이면 스킵, 뒤처졌으면 재수집
-                if pd.read_pickle(out).index[-1] >= latest_td:
-                    done += 1
-                    continue
-            except Exception:
-                pass
+        if not out.exists():
+            return True
+        if not refresh or latest_td is None:
+            return False
+        try:   # 최신이면 스킵, 뒤처졌으면 재수집
+            return pd.read_pickle(out).index[-1] < latest_td
+        except Exception:
+            return True
+
+    def _one(code) -> bool:
         try:
             df = fdr.DataReader(code, HISTORY_START)
             if df is not None and len(df) >= 60:      # 상장 60일 미만 제외
-                df.to_pickle(out)
+                df.to_pickle(PX_DIR / f'{code}.pkl')
+                return True
+            return False
+        except Exception:
+            return False
+
+    todo = [c for c in codes if _need(c)]
+    done = len(codes) - len(todo)
+    print(f'  수집 대상 {len(todo)} / 전체 {len(codes)} (workers={workers})')
+    if workers <= 1:
+        for i, code in enumerate(todo):
+            if _one(code):
                 done += 1
             else:
                 fail += 1
-        except Exception:
-            fail += 1
-        if (i + 1) % 200 == 0:
-            el = time.time() - t0
-            print(f'  {i+1}/{len(codes)}  완료 {done} 실패 {fail}  ({el:.0f}s)',
-                  flush=True)
-        time.sleep(0.03)                               # 소스 서버 예의
+            if (i + 1) % 200 == 0:
+                el = time.time() - t0
+                print(f'  {i+1}/{len(todo)}  완료 {done} 실패 {fail}  ({el:.0f}s)',
+                      flush=True)
+            time.sleep(0.03)                           # 소스 서버 예의
+    else:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            futs = [ex.submit(_one, c) for c in todo]
+            for i, f in enumerate(as_completed(futs)):
+                if f.result():
+                    done += 1
+                else:
+                    fail += 1
+                if (i + 1) % 200 == 0:
+                    el = time.time() - t0
+                    print(f'  {i+1}/{len(todo)}  완료 {done} 실패 {fail}'
+                          f'  ({el:.0f}s)', flush=True)
     print(f'  수집 완료: {done}종목 (실패/제외 {fail})')
 
     # 시장 지수 (KOSPI/KOSDAQ) — market regime 피처용
@@ -220,10 +250,11 @@ def ticker_features(df: pd.DataFrame, code: str, shares: float,
                                         .cumsum().astype(float))
         out['frgn_ratio_chg5'] = fl['ForeignRatio'].diff(5)
     else:
-        for c in ('frgn_net5', 'frgn_net20', 'frgn_consec_buy',
-                  'inst_net5', 'inst_net20', 'inst_consec_buy',
-                  'frgn_ratio_chg5'):
-            out[c] = np.nan
+        # 주의: 루프 변수가 종가 시리즈 c를 가리면 아래 라벨(B) 계산이 깨진다
+        for col in ('frgn_net5', 'frgn_net20', 'frgn_consec_buy',
+                    'inst_net5', 'inst_net20', 'inst_consec_buy',
+                    'frgn_ratio_chg5'):
+            out[col] = np.nan
 
     # ── 라벨(B): v1 forward_tracker 호환 — k일 내 '단일일 종가 +10%' 발생 ──
     # (전일종가 대비 하루 등락률 기준. |±30%| 초과는 분할/권리락 아티팩트 제외)
