@@ -1,12 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-일일 리포트 이메일 발송 — v1의 email_config.json(Gmail 앱 비밀번호) 재사용
+일일 리포트 이메일 발송
 
 picks_history.json 최신일 픽 + performance.md 요약을 HTML 표로 발송.
-run_nightly.sh 3.5단계에서 호출. 실패해도 파이프라인은 계속.
+run_nightly.sh / run_cloud_scan.sh에서 호출. 실패해도 파이프라인은 계속.
+
+설정 탐색 순서 (먼저 발견되는 것 사용):
+  1. 환경변수 GMAIL_SENDER + GMAIL_APP_PASSWORD (+ REPORT_RECIPIENT,
+     생략 시 GMAIL_SENDER 앞으로) — 원격/클라우드 환경용
+  2. 이 저장소의 email_config.json (git 미추적)
+  3. v1(stock_system)의 email_config.json — 기존 Mac 동작 그대로
+
+SMTP가 차단된 환경(클라우드 컨테이너는 HTTPS 프록시만 허용)에서는 발송이
+실패하지만, HTML 본문은 항상 reports/email_YYYY-MM-DD.html로 남겨
+다른 채널(루틴 완료 알림 등)이 활용할 수 있게 한다.
 
 사용법: python3 send_report.py
 """
+import os
 import json
 import smtplib
 from email.mime.text import MIMEText
@@ -15,9 +26,25 @@ from pathlib import Path
 
 from config_v2 import BASE_DIR
 
+V2_EMAIL_CONFIG = BASE_DIR / 'email_config.json'
 V1_EMAIL_CONFIG = BASE_DIR.parent / 'stock_system' / 'email_config.json'
 PICKS_FILE      = BASE_DIR / 'picks_history.json'
 PERF_FILE       = BASE_DIR / 'reports' / 'performance.md'
+
+
+def _load_config() -> dict | None:
+    """이메일 설정: 환경변수 → v2 로컬 → v1 순."""
+    sender = os.environ.get('GMAIL_SENDER')
+    pw     = os.environ.get('GMAIL_APP_PASSWORD')
+    if sender and pw:
+        return {'enabled': True, 'sender_email': sender, 'app_password': pw,
+                'recipient_email': os.environ.get('REPORT_RECIPIENT', sender)}
+    for p in (V2_EMAIL_CONFIG, V1_EMAIL_CONFIG):
+        try:
+            return json.loads(p.read_text(encoding='utf-8'))
+        except Exception:
+            continue
+    return None
 
 
 def _build_html(day: dict) -> str:
@@ -76,9 +103,18 @@ def send() -> bool:
         print('픽 없음'); return False
     day = hist[-1]
 
-    cfg = json.loads(V1_EMAIL_CONFIG.read_text(encoding='utf-8'))
+    # HTML 본문은 발송 성패와 무관하게 항상 파일로 남긴다
+    html = _build_html(day)
+    html_out = BASE_DIR / 'reports' / f"email_{day['date']}.html"
+    html_out.write_text(html, encoding='utf-8')
+    print(f'HTML 본문 저장: {html_out}')
+
+    cfg = _load_config()
+    if cfg is None:
+        print('이메일 설정 없음 (GMAIL_SENDER/GMAIL_APP_PASSWORD 또는 '
+              'email_config.json) — 발송 생략'); return False
     if not cfg.get('enabled'):
-        print('이메일 비활성화 (v1 email_config.json)'); return False
+        print('이메일 비활성화 (email_config.json)'); return False
 
     n_trade = sum(1 for p in day['picks'] if p.get('tradable'))
     msg = MIMEMultipart('alternative')
@@ -86,7 +122,7 @@ def send() -> bool:
     msg['To'] = cfg['recipient_email']
     msg['Subject'] = (f"[v2 급등예측] {day['date']} — "
                       f"매매픽 {n_trade}건 / 후보 {len(day['picks'])}건")
-    msg.attach(MIMEText(_build_html(day), 'html', 'utf-8'))
+    msg.attach(MIMEText(html, 'html', 'utf-8'))
 
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
