@@ -152,6 +152,13 @@ def fetch_prices(uni: pd.DataFrame, refresh: bool = False,
     with open(INDEX_FILE, 'wb') as f:
         pickle.dump(idx, f)
 
+    # 매크로 선행지표 (달러/하이일드 스프레드/구리) — 실패해도 파이프라인 계속
+    try:
+        import fetch_macro
+        fetch_macro.fetch_macro()
+    except Exception as e:
+        print(f'  매크로 수집 실패 (스킵): {e}')
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 2. 종목별 피처 (모든 값은 당일 t 시점까지의 데이터만 사용)
@@ -351,6 +358,19 @@ def build_panel():
                 f'{nm}_ret5': df_i['Close'].pct_change(5)})
             r.index.name = 'date'
             panel = panel.merge(r.reset_index(), on='date', how='left')
+
+    # 매크로 선행지표 (달러 속도/하이일드 스프레드/구리 반등) — 날짜 단위 병합.
+    # 계열별 지연(shift)은 fetch_macro가 처리 (미국 데이터 확정 시점 누수 차단).
+    # 캐시가 없으면 NaN 컬럼으로 유지 → 스키마 안정 (스코어링 시 KeyError 방지).
+    try:
+        import fetch_macro
+        mac = fetch_macro.macro_features(pd.DatetimeIndex(panel['date'].unique()))
+        mac.index.name = 'date'
+        panel = panel.merge(mac.reset_index(), on='date', how='left')
+        n_ok = mac.notna().any().sum()
+        print(f'  매크로 피처 병합: {n_ok}/{len(mac.columns)}개 유효')
+    except Exception as e:
+        print(f'  ⚠ 매크로 피처 병합 실패 (스킵): {e}')
 
     # 섹터 전염: 같은 섹터에서 어제 급등이 나왔는가
     if sector_map:
