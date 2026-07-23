@@ -51,6 +51,44 @@ def _is_tradable(r) -> bool:
     return (r['ret1'] <= TRADABLE_RET1) and (r['ret5'] > KNIFE_RET5)
 
 
+def _macro_lines(day: pd.DataFrame) -> list[str]:
+    """리포트용 매크로 국면 요약 (달러/하이일드/구리 — 증시 선행 3지표).
+
+    매크로 피처는 날짜 단위라 아무 행이나 같은 값. 사전 검증 IC 기준
+    (fetch_macro.py 참조): 달러 급등·스프레드 확대 = 역풍 / 축소·구리 반등 = 순풍.
+    """
+    if 'dxy_ret20' not in day.columns or day.empty:
+        return []
+    r = day.iloc[0]
+    def _f(col, pct=True):
+        v = r.get(col, np.nan)
+        if pd.isna(v):
+            return 'N/A'
+        return f'{v*100:+.1f}%' if pct else f'{v:+.2f}'
+    dxy20 = r.get('dxy_ret20', np.nan)
+    hy20 = r.get('hy_chg20', np.nan)
+    cu_flag = r.get('copper_rebound', np.nan)
+    tail = []
+    if pd.notna(dxy20):
+        tail.append('달러 역풍' if dxy20 > 0.02 else
+                    '달러 순풍' if dxy20 < -0.01 else '달러 중립')
+    if pd.notna(hy20):
+        tail.append('리스크오프(스프레드 확대)' if hy20 > 0.15 else
+                    '리스크온(스프레드 축소)' if hy20 < -0.10 else '크레딧 중립')
+    if pd.notna(cu_flag):
+        tail.append('구리 바닥반등 중' if cu_flag > 0 else '구리 반등신호 없음')
+    return [
+        '**매크로 국면 (전일까지, 증시 선행 3지표)**: '
+        f"달러20일 {_f('dxy_ret20')} (가속 {_f('dxy_accel')}) | "
+        f"원달러20일 {_f('usdkrw_ret20')} | "
+        f"HY스프레드 20일 {_f('hy_chg20', pct=False)}%p "
+        f"(1년 z {_f('hy_z252', pct=False)}) | "
+        f"구리20일 {_f('copper_ret20')}"
+        + (f' → {" · ".join(tail)}' if tail else ''),
+        '',
+    ]
+
+
 def _load_models():
     out = {}
     for key, fn in MODELS.items():
@@ -118,6 +156,7 @@ def run(refresh: bool = True, top_n: int = 20):
         '',
         f'유니버스 {len(day):,}종목 | 정렬: D+1 시가 매수 후 5일 내 +10% 확률(o5) 순',
         '',
+        *_macro_lines(day),
         '**매매 규칙 (12개월 시뮬레이션 검증)**: 아래 top5 중 `매매` 표시만',
         '다음날 **시가 매수 → 5거래일 보유**. 표시 조건: 당일 +15% 미만(상한가류',
         '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건).',

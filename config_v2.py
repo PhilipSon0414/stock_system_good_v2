@@ -34,6 +34,7 @@ except Exception:
 CACHE_DIR  = BASE_DIR / 'cache'
 PX_DIR     = CACHE_DIR / 'px'          # 종목별 OHLCV 캐시
 PANEL_FILE = BASE_DIR / 'panel.pkl'    # 최종 패널 데이터셋
+MACRO_FILE = CACHE_DIR / 'macro.pkl'   # 매크로 선행지표 (달러/하이일드/구리)
 CACHE_DIR.mkdir(exist_ok=True)
 PX_DIR.mkdir(exist_ok=True)
 
