@@ -112,7 +112,8 @@ def _evaluate(p: dict, profile: dict) -> dict | None:
     cur = float(held['Close'].iloc[-1])
     ret = cur / entry - 1
     hmax = float(held['High'].max()) / entry - 1
-    hit = hmax >= SURGE_TH
+    # 익절 판정은 스타일 만기(j9) 이내 고가만 기준
+    hit = float(held['High'].iloc[:MAX_J + 1].max()) / entry - 1 >= SURGE_TH
 
     table = profile.get('cond_picklike') or profile.get('cond_all')
     paths = profile.get('paths_picklike') or profile.get('paths_all') or {}
