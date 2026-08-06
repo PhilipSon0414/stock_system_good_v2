@@ -47,10 +47,75 @@ MODELS = {'j1': 'panel_model_label_jump_1d.pkl',
 #   (2026-06 '폭락주 외삽 결함'). 생존편향(상폐주 부재)까지 감안하면 더 나쁨.
 TRADABLE_RET1 = 0.15
 KNIFE_RET5    = -0.30
+PROFILE_FILE  = BASE_DIR / 'pattern_profile.json'
+MAX_GAP       = 0.08     # 시가 갭 상한 — 이 이상 뜨면 진입 보류 (갭이 목표 잠식)
 
 
 def _is_tradable(r) -> bool:
     return (r['ret1'] <= TRADABLE_RET1) and (r['ret5'] > KNIFE_RET5)
+
+
+def _load_profile() -> dict:
+    try:
+        return json.loads(PROFILE_FILE.read_text(encoding='utf-8'))
+    except Exception:
+        return {}
+
+
+def _stop_lines(profile: dict) -> dict[int, float]:
+    """체크포인트 j별 손절선: 성공확률 15% 미만으로 떨어지는 수익률 상단."""
+    table = profile.get('cond_picklike') or profile.get('cond_all') or {}
+    out = {}
+    for j, rows in table.items():
+        his = [r['hi'] for r in rows if r['p_hit'] < 0.15]
+        if his:
+            out[int(j)] = max(his)
+    return out
+
+
+def _coaching(r, profile: dict, tradable: bool) -> list[str]:
+    """픽 하나에 대한 매수/매도 타이밍 코칭 (pattern_profile 기반)."""
+    paths = profile.get('paths_picklike') or {}
+    win = paths.get('winner', {})
+    stops = _stop_lines(profile)
+    L = [f"**{r['name']} ({r['code']}) — 종가 {r['close']:,.0f}원, "
+         f"2주 내 +10% 확률 {r.get('prob_o10', float('nan'))*100:.0f}%**"]
+
+    # 진입 코칭
+    if tradable:
+        L.append(f"- 진입: 내일 **시가 매수**. 단 시가 갭 **+{MAX_GAP*100:.0f}% "
+                 f"이상**이면 진입 보류 — 갭이 목표수익(+10%)을 잠식")
+    else:
+        why = []
+        if r['ret1'] > TRADABLE_RET1:
+            why.append(f"당일 {r['ret1']*100:+.1f}% 과열(상한가류)")
+        if r['ret5'] <= KNIFE_RET5:
+            why.append(f"5일 {r['ret5']*100:+.1f}% 폭락주")
+        L.append(f"- 관찰용 (매매 제외: {', '.join(why) or 'top5 밖'}) — "
+                 f"눌림(-3~-7%) 시 재평가")
+    # 개별 특성 코멘트
+    if r['ret1'] > 0.20:
+        L.append(f"- ⚠ 당일 {r['ret1']*100:+.0f}% 급등 직후 — 시초가 갭 리스크 큼")
+    if -0.30 < r['ret5'] <= -0.10:
+        L.append(f"- 완만한 눌림({r['ret5']*100:+.0f}%) 구간 — 백테스트상 "
+                 f"최적 유형(+2.78%/건)")
+    if r['vol_ratio'] >= 10:
+        L.append(f"- 거래량 {r['vol_ratio']:.0f}x 폭증 — 변동성 극대, 분할 진입 권장")
+
+    # 매도/손절 계획
+    L.append("- 익절: 매수가 **+10% 도달 즉시 매도** (지정가 걸어두기). "
+             "10거래일(2주) 내 미도달 시 만기 청산")
+    if win:
+        path_txt = ' / '.join(f"j{j} {win[str(j)]*100:+.1f}%"
+                              for j in (1, 3, 5) if str(j) in win)
+        L.append(f"- 순항 기준(승자 중앙값): {path_txt} — 이 위면 홀딩")
+    if stops:
+        stop_txt = ' / '.join(f"j{j} {stops[j]*100:.0f}%"
+                              for j in sorted(stops))
+        L.append(f"- 손절선(성공확률 15%↓): 종가가 {stop_txt} 이탈 시 익일 손절")
+    L.append("- 매일 신호 확인: 포지션 모니터링 리포트(🎯익절/⌛만기/✂️손절/"
+             "⚠️주의/⏳보유)가 자동 판정")
+    return L
 
 
 def _load_models():
@@ -154,6 +219,19 @@ def run(refresh: bool = True, top_n: int = 20):
         lines += ['', '**v1 진입 타이밍 (매매픽)**:']
         lines += [f'- {n}: {v["entry_timing"]}' for n, v in timing]
 
+    # ── 매수/매도 타이밍 코칭 (패턴 프로필 기반) ──
+    profile = _load_profile()
+    coach_map = {}                     # code → 코칭 텍스트 (history 저장용)
+    if profile:
+        lines += ['', '## 매매 코칭 (급등 역추적 패턴 기반)', '',
+                  '보유 경과일 j는 매수일=j0 기준. 상세 근거: '
+                  'reports/pattern_study.md', '']
+        for idx, r in picks.head(5).iterrows():
+            tradable = bool(idx in top5_idx and _is_tradable(r))
+            block = _coaching(r, profile, tradable)
+            coach_map[r['code']] = block
+            lines += block + ['']
+
     report = '\n'.join(lines)
     out_md = REPORT_DIR / f'picks_{date_str}.md'
     out_md.write_text(report, encoding='utf-8')
@@ -178,6 +256,7 @@ def run(refresh: bool = True, top_n: int = 20):
             'ret1': round(float(r['ret1']), 4),
             'vol_ratio': round(float(r['vol_ratio']), 2),
             'tradable': bool(idx in top5_idx and _is_tradable(r)),
+            'coaching': coach_map.get(r['code']),
             'v1': v1.get(r['code']),
         } for i, (idx, r) in enumerate(picks.iterrows())],
     })

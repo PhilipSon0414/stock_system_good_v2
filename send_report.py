@@ -30,6 +30,13 @@ V2_EMAIL_CONFIG = BASE_DIR / 'email_config.json'
 V1_EMAIL_CONFIG = BASE_DIR.parent / 'stock_system' / 'email_config.json'
 PICKS_FILE      = BASE_DIR / 'picks_history.json'
 PERF_FILE       = BASE_DIR / 'reports' / 'performance.md'
+REPORT_DIR      = BASE_DIR / 'reports'
+
+
+def _md_inline(t: str) -> str:
+    """코칭 라인의 **bold** 마크다운만 HTML로."""
+    import re
+    return re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', t)
 
 
 def _load_config() -> dict | None:
@@ -57,14 +64,45 @@ def _build_html(day: dict) -> str:
         v1_txt = (f"세력{v1.get('seoryeok')}/T-{v1.get('tier')}"
                   if v1 else '—')
         color = '#c62828' if p['ret1'] > 0 else '#1565c0'
+        o10 = p.get('prob_o10')
+        o10_txt = f"{o10*100:.1f}%" if o10 is not None else '—'
         rows.append(
             f"<tr><td>{p['rank']}</td><td>{badge}</td>"
             f"<td><b>{p['name']}</b> ({p['code']})</td>"
             f"<td align='right'>{p['close']:,.0f}</td>"
-            f"<td align='right'><b>{p['prob_o5']*100:.1f}%</b></td>"
+            f"<td align='right'><b>{o10_txt}</b></td>"
+            f"<td align='right'>{p['prob_o5']*100:.1f}%</td>"
             f"<td align='right' style='color:{color}'>{p['ret1']*100:+.1f}%</td>"
             f"<td align='right'>{p['vol_ratio']:.1f}x</td>"
             f"<td>{v1_txt}</td></tr>")
+
+    # ── 매매 코칭 (predict_today가 픽별로 생성) ──
+    coach = ''
+    blocks = []
+    for p in day['picks'][:5]:
+        c = p.get('coaching')
+        if not c:
+            continue
+        items = ''.join(f'<li style="margin:2px 0">{_md_inline(x)}</li>'
+                        for x in c[1:])
+        blocks.append(f'<div style="margin:10px 0;padding:10px;'
+                      f'background:#f9fbe7;border-left:4px solid #827717">'
+                      f'<b>{_md_inline(c[0])}</b>'
+                      f'<ul style="margin:6px 0 0;padding-left:18px">'
+                      f'{items}</ul></div>')
+    if blocks:
+        coach = ('<h3 style="margin-top:24px">매수/매도 타이밍 코칭</h3>'
+                 + ''.join(blocks))
+
+    # ── 포지션 모니터링 (당일 리포트가 있으면 첨부) ──
+    pos = ''
+    pos_md = REPORT_DIR / f"positions_{day['date']}.md"
+    if pos_md.exists():
+        pos = ('<h3 style="margin-top:24px">보유 포지션 신호</h3>'
+               '<pre style="background:#f5f5f5;padding:10px;font-size:13px;'
+               'white-space:pre-wrap">'
+               + pos_md.read_text(encoding='utf-8').replace('#', '').strip()
+               + '</pre>')
 
     perf = ''
     if PERF_FILE.exists():
@@ -79,15 +117,18 @@ def _build_html(day: dict) -> str:
 <h2>급등 후보 리포트 — 기준일 {day['date']}</h2>
 <p style="color:#555;font-size:14px">
 <b>매매 규칙</b>: <span style="color:#2e7d32">매매</span> 표시(전체 top5 &amp;
-당일 +15% 미만 &amp; 5일 -30% 초과)만 <b>다음날 시가 매수 → 5거래일 보유</b>.
-검증 성과 +1.27%/건·승률 45%. 나머지는 관찰용.</p>
+당일 +15% 미만 &amp; 5일 -30% 초과)만 <b>다음날 시가 매수 → 1~2주 보유,
++10% 도달 시 익절</b>. 워크포워드 검증: top5 중 66%가 2주 내 +10% 도달.
+나머지는 관찰용.</p>
 <table border="0" cellpadding="6" cellspacing="0"
        style="border-collapse:collapse;font-size:14px;width:100%">
 <tr style="background:#263238;color:#fff">
-<th>#</th><th></th><th>종목</th><th>종가</th><th>o5확률</th>
+<th>#</th><th></th><th>종목</th><th>종가</th><th>o10확률</th><th>o5확률</th>
 <th>당일</th><th>거래량</th><th>v1 검증</th></tr>
 {''.join(rows)}
 </table>
+{coach}
+{pos}
 {perf}
 <p style="color:#999;font-size:12px;margin-top:20px">
 stock_system_good_v2 자동 발송 · 상세: reports/picks_{day['date']}.md ·
