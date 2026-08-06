@@ -106,11 +106,11 @@ def _coaching(r, profile: dict, tradable: bool) -> list[str]:
     L.append("- 익절: 매수가 **+10% 도달 즉시 매도** (지정가 걸어두기). "
              "10거래일(2주) 내 미도달 시 만기 청산")
     if win:
-        path_txt = ' / '.join(f"j{j} {win[str(j)]*100:+.1f}%"
+        path_txt = ' / '.join(f"D+{j} {win[str(j)]*100:+.1f}%"
                               for j in (1, 3, 5) if str(j) in win)
         L.append(f"- 순항 기준(승자 중앙값): {path_txt} — 이 위면 홀딩")
     if stops:
-        stop_txt = ' / '.join(f"j{j} {stops[j]*100:.0f}%"
+        stop_txt = ' / '.join(f"D+{j} {stops[j]*100:.0f}%"
                               for j in sorted(stops))
         L.append(f"- 손절선(성공확률 15%↓): 종가가 {stop_txt} 이탈 시 익일 손절")
     L.append("- 매일 신호 확인: 포지션 모니터링 리포트(🎯익절/⌛만기/✂️손절/"
@@ -224,8 +224,8 @@ def run(refresh: bool = True, top_n: int = 20):
     coach_map = {}                     # code → 코칭 텍스트 (history 저장용)
     if profile:
         lines += ['', '## 매매 코칭 (급등 역추적 패턴 기반)', '',
-                  '보유 경과일 j는 매수일=j0 기준. 상세 근거: '
-                  'reports/pattern_study.md', '']
+                  'D+n = 매수일(D0)부터의 경과 거래일. 만기 D+9 ≈ 2주. '
+                  '상세 근거: reports/pattern_study.md', '']
         for idx, r in picks.head(5).iterrows():
             tradable = bool(idx in top5_idx and _is_tradable(r))
             block = _coaching(r, profile, tradable)

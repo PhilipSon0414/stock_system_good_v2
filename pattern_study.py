@@ -191,20 +191,20 @@ def _write_md(pf: dict):
     for f, v in pf['backward_picklike'].items():
         L.append(f"| {f} | {v['winner_med']} | {v['loser_med']} |")
 
-    L += ['', '## 2. 진입 "후" 경로 (보유 j일째 종가 수익률 중앙값)', '',
-          '| 경과일 | 승자 중앙값 | 승자 하위25% | 패자 중앙값 |', '|---|---|---|---|']
+    L += ['', '## 2. 진입 "후" 경로 (매수 후 D+n일 종가 수익률 중앙값, 매수일=D0)',
+          '', '| 경과일 | 승자 중앙값 | 승자 하위25% | 패자 중앙값 |', '|---|---|---|---|']
     p = pf['paths_picklike']
     for j in map(str, m['check_js']):
         if j in p.get('winner', {}):
-            L.append(f"| j={j} | {_fmt_pct(p['winner'][j])} "
+            L.append(f"| D+{j} | {_fmt_pct(p['winner'][j])} "
                      f"| {_fmt_pct(p['winner_q25'].get(j, float('nan')))} "
                      f"| {_fmt_pct(p['loser'].get(j, float('nan')))} |")
 
     L += ['', '## 3. 조건부 성공 확률 — 모니터링 지표의 근거', '',
-          '보유 j일째 아직 +10% 미도달일 때, 현재 수익률 구간별 '
-          '"만기(j=9)까지 +10% 도달" 확률 (픽 유사 집합):', '']
+          '매수 후 D+n일에 아직 +10% 미도달일 때, 현재 수익률 구간별 '
+          '"만기(D+9)까지 +10% 도달" 확률 (픽 유사 집합):', '']
     for j, rows in pf['cond_picklike'].items():
-        L.append(f'**j={j}일째** (미도달 상태)')
+        L.append(f'**D+{j}일** (미도달 상태)')
         L.append('')
         L.append('| 현재 수익률 | P(성공) | 만기 중앙값 | n |')
         L.append('|---|---|---|---|')
