@@ -49,18 +49,24 @@ FETCH_WORKERS=12 $PY -W ignore build_panel.py fetch
 echo "── 2/6 패널 생성"
 $PY -W ignore build_panel.py build
 
-echo "── 3/6 모델 학습 (j1·5d·o5)"
-for h in j1 5 o5; do
+echo "── 3/8 모델 학습 (j1·5d·o5·o10)"
+for h in j1 5 o5 o10; do
   $PY -W ignore train_panel.py train "$h" || echo "⚠ 학습 실패($h) — 기존 모델로 계속"
 done
 
-echo "── 4/6 예측 리포트"
+echo "── 4/8 급등 역추적 패턴 학습 (o10 경로·조건부 확률)"
+$PY -W ignore pattern_study.py || echo "⚠ 패턴 연구 실패 — 기존 프로필로 계속"
+
+echo "── 5/8 예측 리포트"
 $PY -W ignore predict_today.py --no-refresh
 
-echo "── 5/6 성과 추적"
+echo "── 6/8 포지션 모니터링 (매도/손절 신호)"
+$PY -W ignore monitor_positions.py || echo "⚠ 포지션 모니터링 실패"
+
+echo "── 7/8 성과 추적"
 $PY -W ignore track_performance.py
 
-echo "── 6/6 이메일 (SMTP 가능 환경에서만 실발송)"
+echo "── 8/8 이메일 (SMTP 가능 환경에서만 실발송)"
 $PY -W ignore send_report.py || echo "⚠ 이메일 발송 생략/실패 (루틴 알림이 대체)"
 
 echo "════ 완료 $(TZ=Asia/Seoul date '+%H:%M:%S KST') ════"

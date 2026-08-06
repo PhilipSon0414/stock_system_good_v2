@@ -271,6 +271,10 @@ def ticker_features(df: pd.DataFrame, code: str, shares: float,
     fwd_max_h5 = h[::-1].rolling(5, min_periods=5).max()[::-1].shift(-1)
     out['label_o5'] = ((fwd_max_h5 / entry_open - 1) >= SURGE_TH) \
         .astype(float).where(fwd_max_h5.notna() & entry_open.notna())
+    # 사용자 실매매 스타일: D+1 시가 매수 → 2주(10거래일) 내 고가 +10% 익절
+    fwd_max_h10 = h[::-1].rolling(10, min_periods=10).max()[::-1].shift(-1)
+    out['label_o10'] = ((fwd_max_h10 / entry_open - 1) >= SURGE_TH) \
+        .astype(float).where(fwd_max_h10.notna() & entry_open.notna())
     # D+1 시가 → D+1 종가 +5% (당일 데이트레이드 기준)
     out['label_o1'] = ((c.shift(-1) / entry_open - 1) >= 0.05) \
         .astype(float).where(entry_open.notna() & c.shift(-1).notna())

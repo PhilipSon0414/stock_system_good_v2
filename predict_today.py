@@ -35,7 +35,9 @@ REPORT_DIR.mkdir(exist_ok=True)
 
 MODELS = {'j1': 'panel_model_label_jump_1d.pkl',
           '5d': 'panel_model_label_5d.pkl',
-          'o5': 'panel_model_label_o5.pkl'}   # D+1 시가 매수 기준 (실매매용)
+          'o5': 'panel_model_label_o5.pkl',    # D+1 시가 매수 → 5일 내 +10%
+          'o10': 'panel_model_label_o10.pkl'}  # D+1 시가 매수 → 2주 내 +10%
+                                               # (사용자 스타일: 1~2주 보유 익절)
 
 # 시뮬레이션 검증(12개월)으로 확정한 매매 규칙:
 #   전체 top5 랭킹 중 '픽 당일 +15% 미만'(비상한가 제외) 그리고
@@ -102,7 +104,9 @@ def run(refresh: bool = True, top_n: int = 20):
         feats = bundle['features']
         day[f'prob_{key}'] = bundle['model'].predict_proba(day[feats])[:, 1]
 
-    day = day.sort_values('prob_o5', ascending=False)
+    # 정렬: 사용자 스타일(1~2주 내 +10%) = o10 우선, 없으면 o5
+    sort_key = 'prob_o10' if 'prob_o10' in day.columns else 'prob_o5'
+    day = day.sort_values(sort_key, ascending=False)
     picks = day.head(top_n)
     # 매매 대상: 전체 top5 안에 들면서 당일 아직 +15% 미만 (시뮬레이션 검증 규칙)
     top5_idx = set(day.head(5).index)
@@ -113,18 +117,20 @@ def run(refresh: bool = True, top_n: int = 20):
 
     # ── 리포트 ──
     date_str = str(latest.date())
+    sort_txt = ('2주(10거래일) 내 +10% 확률(o10)' if sort_key == 'prob_o10'
+                else '5일 내 +10% 확률(o5)')
     lines = [
         f'# 급등 후보 리포트 — 기준일 {date_str} (다음 거래일 예측)',
         '',
-        f'유니버스 {len(day):,}종목 | 정렬: D+1 시가 매수 후 5일 내 +10% 확률(o5) 순',
+        f'유니버스 {len(day):,}종목 | 정렬: D+1 시가 매수 후 {sort_txt} 순',
         '',
-        '**매매 규칙 (12개월 시뮬레이션 검증)**: 아래 top5 중 `매매` 표시만',
-        '다음날 **시가 매수 → 5거래일 보유**. 표시 조건: 당일 +15% 미만(상한가류',
-        '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건).',
-        '칼날 제외 후 o5 +1.27%/건·승률 45%. 완만한 눌림(-30%~-10%)이 +2.78% 최적.',
+        '**매매 규칙**: 아래 top5 중 `매매` 표시만 다음날 **시가 매수 →',
+        '1~2주 보유, +10% 도달 시 익절** (보유 중 판단은 포지션 모니터링 참고).',
+        '표시 조건: 당일 +15% 미만(상한가류 제외 — 갭이 수익 잠식) & 5일 -30%',
+        '초과(폭락주 제외 — 12개월 시뮬레이션 검증, 백테스트 -4.2%/건).',
         '',
-        '| # | 매매 | 종목 | 코드 | 종가 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | v1 세력/티어 |',
-        '|---|---|---|---|---|---|---|---|---|---|---|---|',
+        '| # | 매매 | 종목 | 코드 | 종가 | o10확률 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | v1 세력/티어 |',
+        '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
     ]
     for rank, (idx, r) in enumerate(picks.iterrows(), 1):
         tradable = '✅' if (idx in top5_idx and _is_tradable(r)) else ''
@@ -133,6 +139,7 @@ def run(refresh: bool = True, top_n: int = 20):
                   else ('게이트미달' if r['code'] in v1 else '—'))
         lines.append(
             f"| {rank} | {tradable} | {r['name']} | {r['code']} | {r['close']:,.0f} "
+            f"| {r.get('prob_o10', np.nan)*100:.1f}% "
             f"| {r['prob_o5']*100:.1f}% | {r.get('prob_j1', np.nan)*100:.1f}% "
             f"| {r['ret1']*100:+.1f}% | {r['ret5']*100:+.1f}% "
             f"| {r['vol_ratio']:.1f}x | {r.get('sec_surge_cnt_y', 0):.0f} "
@@ -164,6 +171,7 @@ def run(refresh: bool = True, top_n: int = 20):
         'picks': [{
             'rank': i + 1, 'code': r['code'], 'name': r['name'],
             'close': float(r['close']),
+            'prob_o10': round(float(r.get('prob_o10', np.nan)), 4),
             'prob_o5': round(float(r.get('prob_o5', np.nan)), 4),
             'prob_j1': round(float(r.get('prob_j1', np.nan)), 4),
             'prob_5d': round(float(r.get('prob_5d', np.nan)), 4),
