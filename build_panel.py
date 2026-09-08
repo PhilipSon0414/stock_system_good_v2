@@ -51,9 +51,34 @@ def _clean_universe(listing: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def _fetch_listing_csv_fallback(max_back_days: int = 7) -> pd.DataFrame:
+    """FDR의 KRX 캐시 미러가 당일자를 아직 못 올렸을 때(장마감 직후 실행 시 흔함)
+    같은 미러 저장소의 CSV를 최근일부터 거슬러 직접 가져온다."""
+    import io
+    import requests
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    for i in range(max_back_days):
+        d = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        url = ('https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/'
+               f'refs/heads/master/data/listing/krx/{d}.csv')
+        r = requests.get(url, timeout=15)
+        if r.status_code == 200:
+            print(f'  대체 리스팅 소스 사용: {d} (당일자 미반영 → 최근 가용일로 대체)')
+            df = pd.read_csv(io.StringIO(r.text), index_col=0,
+                              dtype={'Code': str, 'Dept': str, 'ChangeCode': str,
+                                     'MarketId': str})
+            return df.reset_index(drop=True)
+    raise RuntimeError(f'최근 {max_back_days}일간 리스팅 캐시를 찾지 못함')
+
+
 def fetch_listing() -> pd.DataFrame:
     import FinanceDataReader as fdr
-    listing = fdr.StockListing('KRX')
+    try:
+        listing = fdr.StockListing('KRX')
+    except Exception as e:
+        print(f'  FDR KRX 리스팅 실패 ({e}) — 캐시 CSV 직접 조회로 대체')
+        listing = _fetch_listing_csv_fallback()
     listing.to_pickle(LISTING_FILE)
 
     # 섹터 매핑 (실패해도 무방 — 테마 전염 피처는 시장 전체 기준으로 대체)
