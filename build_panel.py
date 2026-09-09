@@ -51,9 +51,36 @@ def _clean_universe(listing: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def _fetch_krx_listing_fallback(max_lookback: int = 7) -> pd.DataFrame:
+    """fdr.StockListing('KRX')이 참조하는 GitHub 캐시(fdr_krx_data_cache)가
+    당일 스냅샷을 아직 게시하지 않아 404가 나는 경우의 우회.
+    같은 저장소에서 최근일부터 거슬러 올라가며 존재하는 스냅샷을 찾는다
+    (상장 목록은 하루이틀 지연돼도 사실상 동일해 안전한 근사)."""
+    import datetime as dt
+    d = dt.date.today()
+    for i in range(max_lookback):
+        day = d - dt.timedelta(days=i)
+        url = ('https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/'
+               f'refs/heads/master/data/listing/krx/{day.isoformat()}.csv')
+        try:
+            df = pd.read_csv(url, index_col=0,
+                             dtype={'Code': str, 'Dept': str,
+                                    'ChangeCode': str, 'MarketId': str})
+        except Exception:
+            continue
+        df = df.reset_index(drop=True)
+        print(f'  KRX 상장목록 캐시 우회 성공: {day.isoformat()} 스냅샷 사용')
+        return df
+    raise RuntimeError('KRX 상장목록: 최근 스냅샷을 찾지 못함 (fallback 소진)')
+
+
 def fetch_listing() -> pd.DataFrame:
     import FinanceDataReader as fdr
-    listing = fdr.StockListing('KRX')
+    try:
+        listing = fdr.StockListing('KRX')
+    except Exception as e:
+        print(f'  fdr.StockListing(KRX) 실패 ({e}) — 캐시 저장소 직접 조회로 대체')
+        listing = _fetch_krx_listing_fallback()
     listing.to_pickle(LISTING_FILE)
 
     # 섹터 매핑 (실패해도 무방 — 테마 전염 피처는 시장 전체 기준으로 대체)
