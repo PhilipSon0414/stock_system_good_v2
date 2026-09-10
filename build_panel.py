@@ -51,9 +51,38 @@ def _clean_universe(listing: pd.DataFrame) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def _fetch_listing_fallback(max_lookback_days: int = 10) -> pd.DataFrame:
+    """fdr_krx_data_cache 미러가 당일치를 아직 못 올렸을 때
+    (KRX가 보고하는 최신 거래일과 GitHub 캐시 반영 사이의 지연) 최근
+    영업일을 거슬러 올라가며 사용 가능한 가장 최신 리스팅을 가져온다.
+    종목 유니버스는 하루이틀 사이 거의 변하지 않으므로 안전한 대체."""
+    import pandas as pd
+    from datetime import datetime, timedelta
+
+    today = datetime.now()
+    for i in range(max_lookback_days):
+        d = (today - timedelta(days=i)).strftime('%Y-%m-%d')
+        url = ('https://raw.githubusercontent.com/FinanceData/'
+               f'fdr_krx_data_cache/refs/heads/master/data/listing/krx/{d}.csv')
+        try:
+            df = pd.read_csv(url, index_col=0,
+                              dtype={'Code': str, 'Dept': str,
+                                     'ChangeCode': str, 'MarketId': str})
+        except Exception:
+            continue
+        df = df.reset_index(drop=True)
+        print(f'  리스팅 캐시 최신일({d}) 사용 (오늘자 미반영, {i}일 전 대체)')
+        return df
+    raise RuntimeError('fdr_krx_data_cache에서 최근 리스팅을 찾지 못함')
+
+
 def fetch_listing() -> pd.DataFrame:
     import FinanceDataReader as fdr
-    listing = fdr.StockListing('KRX')
+    try:
+        listing = fdr.StockListing('KRX')
+    except Exception as e:
+        print(f'  KRX 리스팅 캐시 조회 실패 ({e}) — 최근 영업일로 대체 시도')
+        listing = _fetch_listing_fallback()
     listing.to_pickle(LISTING_FILE)
 
     # 섹터 매핑 (실패해도 무방 — 테마 전염 피처는 시장 전체 기준으로 대체)
