@@ -60,6 +60,9 @@ $PY -W ignore predict_today.py --no-refresh
 echo "── 5/6 성과 추적"
 $PY -W ignore track_performance.py
 
+echo "── 5.5/6 월간 실험 포트폴리오 발행(매월 27일~)·모의매매 정산"
+$PY -W ignore monthly_picks.py || echo "⚠ 월간 포트폴리오 실패 (스킵)"
+
 echo "── 6/6 이메일 (SMTP 가능 환경에서만 실발송)"
 $PY -W ignore send_report.py || echo "⚠ 이메일 발송 생략/실패 (루틴 알림이 대체)"
 
