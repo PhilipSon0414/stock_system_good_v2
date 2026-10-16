@@ -77,6 +77,13 @@ def _v1_check(codes: list[str]) -> dict:
         return {}
 
 
+def _accum_txt(r) -> str:
+    """조용한 매집: 최근 3개월 거래량 ≥ 직전 3개월의 3배인데 60일 가격 ±15% 이내."""
+    if r.get('vol_accum') == 1:
+        return f"🤫 거래량 {r['vol_trend']:.1f}배"
+    return ''
+
+
 def run(refresh: bool = True, top_n: int = 20):
     if refresh:
         print('■ 1/3 데이터 갱신')
@@ -123,8 +130,8 @@ def run(refresh: bool = True, top_n: int = 20):
         '제외 — 갭이 수익 잠식) & 5일 -30% 초과(폭락주 제외 — 백테스트 -4.2%/건).',
         '칼날 제외 후 o5 +1.27%/건·승률 45%. 완만한 눌림(-30%~-10%)이 +2.78% 최적.',
         '',
-        '| # | 매매 | 종목 | 코드 | 종가 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | v1 세력/티어 |',
-        '|---|---|---|---|---|---|---|---|---|---|---|---|',
+        '| # | 매매 | 종목 | 코드 | 종가 | o5확률 | j1확률 | 당일% | 5일% | 거래량비 | 업종어제급등 | 조용한 매집 | v1 세력/티어 |',
+        '|---|---|---|---|---|---|---|---|---|---|---|---|---|',
     ]
     for rank, (idx, r) in enumerate(picks.iterrows(), 1):
         tradable = '✅' if (idx in top5_idx and _is_tradable(r)) else ''
@@ -136,7 +143,7 @@ def run(refresh: bool = True, top_n: int = 20):
             f"| {r['prob_o5']*100:.1f}% | {r.get('prob_j1', np.nan)*100:.1f}% "
             f"| {r['ret1']*100:+.1f}% | {r['ret5']*100:+.1f}% "
             f"| {r['vol_ratio']:.1f}x | {r.get('sec_surge_cnt_y', 0):.0f} "
-            f"| {v1_txt} |")
+            f"| {_accum_txt(r)} | {v1_txt} |")
 
     # v1 진입 타이밍 코멘트 (매매픽만)
     timing = [(r['name'], v1.get(r['code']))
@@ -146,6 +153,22 @@ def run(refresh: bool = True, top_n: int = 20):
     if timing:
         lines += ['', '**v1 진입 타이밍 (매매픽)**:']
         lines += [f'- {n}: {v["entry_timing"]}' for n, v in timing]
+
+    # 조용한 매집 종목 — o5 상위 20 밖이어도 전체 유니버스에서 별도 표기
+    acc = day[day['vol_accum'] == 1].head(10)
+    lines += ['', '## 🤫 조용한 매집 후보 (거래량 3개월 3배↑ · 가격 60일 ±15% 이내)',
+              f'유니버스 내 해당 {int((day["vol_accum"] == 1).sum())}종목 중 o5확률 상위 '
+              f'{len(acc)}개. 관찰용 단서 — 매매 규칙과 별개 (12개월 검증상 o5 적중률 16.1%로 '
+              f'전체 기저율 17.4% 대비 우위 없음).', '']
+    if len(acc):
+        lines += ['| 종목 | 코드 | 종가 | o5확률 | 거래량 추세 | 60일% | 당일% |',
+                  '|---|---|---|---|---|---|---|']
+        lines += [f"| {r['name']} | {r['code']} | {r['close']:,.0f} "
+                  f"| {r['prob_o5']*100:.1f}% | {r['vol_trend']:.1f}배 "
+                  f"| {r['ret60']*100:+.1f}% | {r['ret1']*100:+.1f}% |"
+                  for _, r in acc.iterrows()]
+    else:
+        lines.append('해당 종목 없음')
 
     report = '\n'.join(lines)
     out_md = REPORT_DIR / f'picks_{date_str}.md'
@@ -169,10 +192,18 @@ def run(refresh: bool = True, top_n: int = 20):
             'prob_5d': round(float(r.get('prob_5d', np.nan)), 4),
             'ret1': round(float(r['ret1']), 4),
             'vol_ratio': round(float(r['vol_ratio']), 2),
+            'quiet_accum': bool(r.get('vol_accum') == 1),
+            'vol_trend': round(float(r.get('vol_trend', np.nan)), 2),
             'tradable': bool(idx in top5_idx and _is_tradable(r)),
             'v1': v1.get(r['code']),
         } for i, (idx, r) in enumerate(picks.iterrows())],
     })
+    hist[-1]['accum_picks'] = [{
+        'code': r['code'], 'name': r['name'], 'close': float(r['close']),
+        'prob_o5': round(float(r['prob_o5']), 4),
+        'vol_trend': round(float(r['vol_trend']), 2),
+        'ret60': round(float(r['ret60']), 4), 'ret1': round(float(r['ret1']), 4),
+    } for _, r in acc.iterrows()]
     PICKS_FILE.write_text(json.dumps(hist, ensure_ascii=False, indent=1),
                           encoding='utf-8')
     print(f'누적 기록: {PICKS_FILE} ({len(hist)}일)')

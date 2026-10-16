@@ -59,12 +59,28 @@ def _build_html(day: dict) -> str:
         color = '#c62828' if p['ret1'] > 0 else '#1565c0'
         rows.append(
             f"<tr><td>{p['rank']}</td><td>{badge}</td>"
-            f"<td><b>{p['name']}</b> ({p['code']})</td>"
+            f"<td><b>{p['name']}</b> ({p['code']})"
+            f"{' 🤫<small>조용한 매집 ' + format(p.get('vol_trend', 0), '.1f') + '배</small>' if p.get('quiet_accum') else ''}</td>"
             f"<td align='right'>{p['close']:,.0f}</td>"
             f"<td align='right'><b>{p['prob_o5']*100:.1f}%</b></td>"
             f"<td align='right' style='color:{color}'>{p['ret1']*100:+.1f}%</td>"
             f"<td align='right'>{p['vol_ratio']:.1f}x</td>"
             f"<td>{v1_txt}</td></tr>")
+
+    acc_rows = ''.join(
+        f"<tr><td><b>{a['name']}</b> ({a['code']})</td>"
+        f"<td align='right'>{a['close']:,.0f}</td>"
+        f"<td align='right'>{a['prob_o5']*100:.1f}%</td>"
+        f"<td align='right'>{a['vol_trend']:.1f}배</td>"
+        f"<td align='right'>{a['ret60']*100:+.1f}%</td></tr>"
+        for a in day.get('accum_picks', []))
+    acc = ('<h3 style="margin-top:24px">🤫 조용한 매집 후보</h3>'
+           '<p style="color:#555;font-size:13px">최근 3개월 거래량이 직전 3개월의 3배 이상인데 '
+           '60일 가격 변동은 ±15% 이내. 관찰용 단서(매매 규칙과 별개).</p>'
+           '<table cellpadding="6" style="border-collapse:collapse;font-size:14px;width:100%">'
+           '<tr style="background:#263238;color:#fff"><th>종목</th><th>종가</th>'
+           '<th>o5확률</th><th>거래량 추세</th><th>60일</th></tr>' + acc_rows + '</table>'
+           ) if acc_rows else ''
 
     perf = ''
     if PERF_FILE.exists():
@@ -88,6 +104,7 @@ def _build_html(day: dict) -> str:
 <th>당일</th><th>거래량</th><th>v1 검증</th></tr>
 {''.join(rows)}
 </table>
+{acc}
 {perf}
 <p style="color:#999;font-size:12px;margin-top:20px">
 stock_system_good_v2 자동 발송 · 상세: reports/picks_{day['date']}.md ·

@@ -1943,7 +1943,7 @@
  },
  {
   "date": "2026-10-16",
-  "generated_at": "2026-10-16T06:47:30",
+  "generated_at": "2026-10-16T07:27:30",
   "picks": [
    {
     "rank": 1,
@@ -1955,6 +1955,8 @@
     "prob_5d": 0.8569,
     "ret1": 0.084,
     "vol_ratio": 1.85,
+    "quiet_accum": false,
+    "vol_trend": 5.68,
     "tradable": true,
     "v1": null
    },
@@ -1968,6 +1970,8 @@
     "prob_5d": 0.8607,
     "ret1": 0.224,
     "vol_ratio": 1.79,
+    "quiet_accum": false,
+    "vol_trend": 0.99,
     "tradable": false,
     "v1": null
    },
@@ -1981,6 +1985,8 @@
     "prob_5d": 0.8586,
     "ret1": 0.1819,
     "vol_ratio": 2.46,
+    "quiet_accum": false,
+    "vol_trend": 5.98,
     "tradable": false,
     "v1": null
    },
@@ -1994,6 +2000,8 @@
     "prob_5d": 0.849,
     "ret1": -0.003,
     "vol_ratio": 2.3,
+    "quiet_accum": false,
+    "vol_trend": 12.04,
     "tradable": true,
     "v1": null
    },
@@ -2007,6 +2015,8 @@
     "prob_5d": 0.8326,
     "ret1": 0.2222,
     "vol_ratio": 2.19,
+    "quiet_accum": false,
+    "vol_trend": 1.0,
     "tradable": false,
     "v1": null
    },
@@ -2020,6 +2030,8 @@
     "prob_5d": 0.8577,
     "ret1": 0.2183,
     "vol_ratio": 1.24,
+    "quiet_accum": false,
+    "vol_trend": 1.84,
     "tradable": false,
     "v1": null
    },
@@ -2033,6 +2045,8 @@
     "prob_5d": 0.8343,
     "ret1": 0.2601,
     "vol_ratio": 6.73,
+    "quiet_accum": false,
+    "vol_trend": 1.95,
     "tradable": false,
     "v1": null
    },
@@ -2046,6 +2060,8 @@
     "prob_5d": 0.8508,
     "ret1": -0.2123,
     "vol_ratio": 55.43,
+    "quiet_accum": false,
+    "vol_trend": 1.04,
     "tradable": false,
     "v1": null
    },
@@ -2059,6 +2075,8 @@
     "prob_5d": 0.8153,
     "ret1": 0.0625,
     "vol_ratio": 0.55,
+    "quiet_accum": false,
+    "vol_trend": 0.82,
     "tradable": false,
     "v1": null
    },
@@ -2072,6 +2090,8 @@
     "prob_5d": 0.8592,
     "ret1": 0.1519,
     "vol_ratio": 0.87,
+    "quiet_accum": false,
+    "vol_trend": 1.46,
     "tradable": false,
     "v1": null
    },
@@ -2085,6 +2105,8 @@
     "prob_5d": 0.8613,
     "ret1": 0.2495,
     "vol_ratio": 7.09,
+    "quiet_accum": false,
+    "vol_trend": 0.54,
     "tradable": false,
     "v1": null
    },
@@ -2098,6 +2120,8 @@
     "prob_5d": 0.8215,
     "ret1": 0.1092,
     "vol_ratio": 1.29,
+    "quiet_accum": false,
+    "vol_trend": 0.72,
     "tradable": false,
     "v1": null
    },
@@ -2111,6 +2135,8 @@
     "prob_5d": 0.8283,
     "ret1": -0.0143,
     "vol_ratio": 1.59,
+    "quiet_accum": false,
+    "vol_trend": 7.07,
     "tradable": false,
     "v1": null
    },
@@ -2124,6 +2150,8 @@
     "prob_5d": 0.8102,
     "ret1": 0.1053,
     "vol_ratio": 1.65,
+    "quiet_accum": false,
+    "vol_trend": 2.2,
     "tradable": false,
     "v1": null
    },
@@ -2137,6 +2165,8 @@
     "prob_5d": 0.848,
     "ret1": 0.0605,
     "vol_ratio": 0.71,
+    "quiet_accum": false,
+    "vol_trend": 0.79,
     "tradable": false,
     "v1": null
    },
@@ -2150,6 +2180,8 @@
     "prob_5d": 0.8506,
     "ret1": 0.1342,
     "vol_ratio": 0.9,
+    "quiet_accum": false,
+    "vol_trend": 0.47,
     "tradable": false,
     "v1": null
    },
@@ -2163,6 +2195,8 @@
     "prob_5d": 0.7749,
     "ret1": 0.1041,
     "vol_ratio": 0.49,
+    "quiet_accum": false,
+    "vol_trend": 0.7,
     "tradable": false,
     "v1": null
    },
@@ -2176,6 +2210,8 @@
     "prob_5d": 0.8675,
     "ret1": 0.2983,
     "vol_ratio": 9.05,
+    "quiet_accum": false,
+    "vol_trend": 2.16,
     "tradable": false,
     "v1": null
    },
@@ -2189,6 +2225,8 @@
     "prob_5d": 0.8343,
     "ret1": 0.0672,
     "vol_ratio": 0.56,
+    "quiet_accum": false,
+    "vol_trend": 0.89,
     "tradable": false,
     "v1": null
    },
@@ -2202,8 +2240,102 @@
     "prob_5d": 0.8469,
     "ret1": 0.1118,
     "vol_ratio": 0.94,
+    "quiet_accum": false,
+    "vol_trend": 1.59,
     "tradable": false,
     "v1": null
+   }
+  ],
+  "accum_picks": [
+   {
+    "code": "478340",
+    "name": "나라스페이스테크놀로지",
+    "close": 9800.0,
+    "prob_o5": 0.594,
+    "vol_trend": 3.23,
+    "ret60": -0.0755,
+    "ret1": 0.0664
+   },
+   {
+    "code": "302550",
+    "name": "리메드",
+    "close": 2390.0,
+    "prob_o5": 0.5699,
+    "vol_trend": 4.75,
+    "ret60": -0.1309,
+    "ret1": 0.1354
+   },
+   {
+    "code": "413630",
+    "name": "씨피시스템",
+    "close": 3575.0,
+    "prob_o5": 0.5111,
+    "vol_trend": 3.17,
+    "ret60": 0.064,
+    "ret1": 0.0784
+   },
+   {
+    "code": "041190",
+    "name": "우리기술투자",
+    "close": 5090.0,
+    "prob_o5": 0.4489,
+    "vol_trend": 4.09,
+    "ret60": 0.1387,
+    "ret1": 0.0441
+   },
+   {
+    "code": "025980",
+    "name": "아난티",
+    "close": 4315.0,
+    "prob_o5": 0.4211,
+    "vol_trend": 3.17,
+    "ret60": 0.1325,
+    "ret1": 0.0225
+   },
+   {
+    "code": "900340",
+    "name": "윙입푸드",
+    "close": 1140.0,
+    "prob_o5": 0.4193,
+    "vol_trend": 11.81,
+    "ret60": -0.1142,
+    "ret1": 0.0169
+   },
+   {
+    "code": "463020",
+    "name": "뉴엔AI",
+    "close": 6040.0,
+    "prob_o5": 0.3962,
+    "vol_trend": 5.82,
+    "ret60": 0.0067,
+    "ret1": 0.0883
+   },
+   {
+    "code": "094480",
+    "name": "갤럭시아머니트리",
+    "close": 4920.0,
+    "prob_o5": 0.3864,
+    "vol_trend": 3.08,
+    "ret60": 0.0061,
+    "ret1": 0.0581
+   },
+   {
+    "code": "333430",
+    "name": "일승",
+    "close": 3420.0,
+    "prob_o5": 0.3401,
+    "vol_trend": 5.19,
+    "ret60": 0.1306,
+    "ret1": 0.0539
+   },
+   {
+    "code": "950200",
+    "name": "소마젠",
+    "close": 2970.0,
+    "prob_o5": 0.3334,
+    "vol_trend": 6.44,
+    "ret60": 0.102,
+    "ret1": 0.0439
    }
   ]
  }

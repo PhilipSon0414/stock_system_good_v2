@@ -31,6 +31,9 @@ from config_v2 import (BASE_DIR, PANEL_FILE, MIN_PRICE, MIN_MCAP,
 
 ID_COLS    = ['date', 'code', 'name', 'sector', 'close', 'mcap']
 LABEL_PRE  = ('label_', 'fwd_maxret_')
+# 조용한 매집 피처는 표기용 — 12개월 워크포워드에서 o5 AUC 0.7106→0.7089,
+# p@5 63.0%→61.6%로 오히려 소폭 악화되어 학습 피처에서 제외
+NOTE_ONLY  = {'vol_trend', 'ret60_flat', 'vol_accum', 'vol_trend_pct'}
 
 
 def _label_col(spec) -> str:
@@ -54,7 +57,8 @@ def load_panel(spec):
                   (panel['mcap'] >= MIN_MCAP) &
                   panel[label].notna()].copy()
     feats = [c for c in panel.columns
-             if c not in ID_COLS and not c.startswith(LABEL_PRE)]
+             if c not in ID_COLS and c not in NOTE_ONLY
+             and not c.startswith(LABEL_PRE)]
     # 수급 캐시가 없는 환경에서는 flow 피처가 전부 NaN → HistGBM 비닝이
     # 고유값 2개 미만 컬럼에서 실패한다. 정보 없는 컬럼은 학습에서 제외.
     dead = [c for c in feats if panel[c].dropna().nunique() < 2]
