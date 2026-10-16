@@ -197,6 +197,15 @@ def ticker_features(df: pd.DataFrame, code: str, shares: float,
     out['vol_recovery'] = ((out['quiet_streak'] >= 3) & (vr >= 1.2)).astype(float)
     out['turnover'] = (c * v) / out['mcap'].replace(0, np.nan)   # 회전율 근사
 
+    # 3개월 거래량 추세: 최근 60일 평균 ÷ 직전 60일 평균 (매집/관심 증가)
+    vma60 = v.rolling(60).mean()
+    out['vol_trend'] = vma60 / vma60.shift(60).replace(0, np.nan)
+    # 거래량은 늘었는데 가격은 정체(60일 ±15% 이내) — 흡수·매집형 조합
+    out['ret60_flat'] = (c.pct_change(60).abs() <= 0.15).astype(float) \
+        .where(out['vol_trend'].notna())
+    out['vol_accum'] = ((out['vol_trend'] >= 3) & (out['ret60_flat'] == 1)) \
+        .astype(float).where(out['vol_trend'].notna())
+
     # ── 가격 구조 ──
     hh240 = h.rolling(240, min_periods=120).max()
     out['dist_52w_high'] = c / hh240 - 1
@@ -286,7 +295,7 @@ def ticker_features(df: pd.DataFrame, code: str, shares: float,
 
 # 당일 전 종목 대비 백분위로 변환할 피처 — 절대값은 장세에 따라 의미가
 # 변하므로(모두 뜨거운 날의 거래량 1.5x는 무의미) 횡단면 순위를 병행 학습
-RANK_FEATS = ['vol_ratio', 'turnover', 'ret5', 'ret20', 'mcap', 'volat20']
+RANK_FEATS = ['vol_trend', 'vol_ratio', 'turnover', 'ret5', 'ret20', 'mcap', 'volat20']
 
 def build_panel():
     listing = pd.read_pickle(LISTING_FILE)
