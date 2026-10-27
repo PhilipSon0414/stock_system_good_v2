@@ -25,7 +25,7 @@ fi
 
 echo "── 0/6 의존성"
 $PY -c "import pandas, sklearn, joblib, FinanceDataReader" 2>/dev/null || \
-  pip install --quiet "pandas<3" scikit-learn joblib finance-datareader certifi
+  $PY -m pip install --quiet "pandas<3" scikit-learn joblib finance-datareader certifi
 
 # 오늘 종가가 소스(네이버)에 반영될 때까지 대기 (장 마감 15:30 직후 실행 대비,
 # 최대 6회 × 5분). 공휴일이면 반영이 없으므로 30분 후 직전 거래일로 진행 —
