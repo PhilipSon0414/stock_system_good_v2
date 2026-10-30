@@ -13,6 +13,10 @@ set -u
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 PY=python3
+# python3가 pip 대상 인터프리터와 다를 수 있음(컨테이너에 3.11/3.13 공존) → 패키지가 import되는 쪽 선택
+for c in python3 python3.13 python3.12 python3.11; do
+  if command -v $c >/dev/null && $c -c "import pandas, sklearn, joblib, FinanceDataReader" 2>/dev/null; then PY=$c; break; fi
+done
 
 echo "════ cloud scan $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S KST') ════"
 
