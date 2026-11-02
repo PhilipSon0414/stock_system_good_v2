@@ -53,7 +53,27 @@ def _clean_universe(listing: pd.DataFrame) -> pd.DataFrame:
 
 def fetch_listing() -> pd.DataFrame:
     import FinanceDataReader as fdr
-    listing = fdr.StockListing('KRX')
+    try:
+        listing = fdr.StockListing('KRX')
+    except Exception as e:
+        # KRX 직접 접속이 막힌 환경: fdr 캐시 저장소(GitHub)의 최신 CSV로 대체
+        print(f'  KRX 리스팅 실패({type(e).__name__}) → GitHub 캐시 대체')
+        from datetime import date, timedelta
+        listing = None
+        for k in range(10):
+            d = (date.today() + timedelta(hours=9 // 24) - timedelta(days=k)).isoformat()
+            url = ('https://raw.githubusercontent.com/FinanceData/fdr_krx_data_cache/'
+                   f'refs/heads/master/data/listing/krx/{d}.csv')
+            try:
+                listing = pd.read_csv(url, index_col=0, dtype={
+                    'Code': str, 'Dept': str, 'ChangeCode': str, 'MarketId': str}
+                ).reset_index(drop=True)
+                print(f'  캐시 리스팅 사용: {d}')
+                break
+            except Exception:
+                continue
+        if listing is None:
+            raise
     listing.to_pickle(LISTING_FILE)
 
     # 섹터 매핑 (실패해도 무방 — 테마 전염 피처는 시장 전체 기준으로 대체)
