@@ -24,8 +24,13 @@ if [ "$dow" -ge 6 ]; then
 fi
 
 echo "── 0/6 의존성"
+# pip은 반드시 $PY 자신의 것으로 호출 (컨테이너의 `pip`이 다른 파이썬 버전을 가리킬 수 있음)
 $PY -c "import pandas, sklearn, joblib, FinanceDataReader" 2>/dev/null || \
-  pip install --quiet "pandas<3" scikit-learn joblib finance-datareader certifi
+  $PY -m pip install --quiet "pandas<3" scikit-learn joblib finance-datareader certifi
+if ! $PY -c "import numpy, pandas, sklearn, joblib, FinanceDataReader" 2>/dev/null; then
+  echo "✖ 의존성 import 실패 ($($PY --version)) — 중단"
+  exit 1
+fi
 
 # 오늘 종가가 소스(네이버)에 반영될 때까지 대기 (장 마감 15:30 직후 실행 대비,
 # 최대 6회 × 5분). 공휴일이면 반영이 없으므로 30분 후 직전 거래일로 진행 —
